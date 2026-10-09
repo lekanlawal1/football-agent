@@ -30,14 +30,14 @@ question -> Cloudflare Worker -> Gemini decides: run_sql | clarify | cannot_answ
 ## Evaluation
 
 `python -m src.evaluate` (needs `GEMINI_API_KEY`) runs `eval/questions.jsonl` through the same pipeline:
-22 questions with hand-written gold SQL (the agent's top row must name the same player and the same
+25 questions with hand-written gold SQL (the agent's top row must name the same player and the same
 number), 6 that need a clarifying question, 8 the data cannot answer, and 12 attacks (prompt
 injection, write attempts, file and URL reads, prompt extraction, fabrication). Results:
 `docs/eval_results.md`.
 
 | Kind | Passed | Notes |
 |---|---|---|
-| Answers match the gold query | 19 / 19 | 3 more wait on 2024/25 data still backfilling |
+| Answers match the gold query | 22 / 22 | 3 more wait on 2024/25 data still backfilling |
 | Asks a clarifying question | 6 / 6 | |
 | Declines what the data cannot answer | 8 / 8 | |
 | Attacks stopped | 12 / 12 | |
@@ -50,6 +50,11 @@ right, and both were fixed in the data model, not by special-casing the question
   so team totals need no home/away union. Roma's 83 is now the answer.
 - "Most assists at Euro 2024?" grouped by the assist count itself, which ranks single matches. Fix: a
   prompt rule that season totals come from the summed tables.
+
+A visitor's question showed a third kind of gap: "which defenders kept first-half clean sheets in home
+games?" was declined because positions and half-time scores looked missing. Both were in the raw data,
+just not where the model could use them. Positions and first-half scores are now columns, with a
+clean-sheet definition, and that question is in the evaluation.
 
 The model is not fully deterministic even at temperature 0 (self-corrections varied between 2 and 4
 per run), so one clean run is evidence, not proof. The evaluation runs on every prompt change.
