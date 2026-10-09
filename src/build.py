@@ -5,7 +5,7 @@ Tables the agent can query (documented in docs/schema.md, which is also what the
   player_match  one row per player per match: minutes and totals
   events        key on-ball events with the minute they happened
   shots         every shot, with StatsBomb's xG and this project's model_xg
-  player_season per player per competition season: totals and per-90 rates (a view)
+  player_season per player per competition season, both sources: totals and per-90 rates
 
 A failing data test stops the build with a non-zero exit, so a bad ingest never reaches the site.
 """
@@ -51,8 +51,13 @@ def build(db_path: Path = DB) -> duckdb.DuckDBPyConnection:
         shots = DATA / "shots.parquet"
     con.execute(f"CREATE TABLE shots AS SELECT * FROM read_parquet('{shots}')")
     con.execute("ALTER TABLE shots ADD COLUMN IF NOT EXISTS model_xg DOUBLE")   # before src.xg has run
+    # API-Football 2024/25 (results for every match; season totals per player, club by club)
+    api = ROOT / "data" / "api_football"
+    if (api / "api_matches.parquet").exists():
+        con.execute(f"""INSERT INTO matches SELECT match_id, competition, season, CAST(date AS DATE), home_team, away_team,
+            home_score, away_score, stage, NULL, 'api-football' FROM read_parquet('{api / 'api_matches.parquet'}')""")
     con.execute("""
-        CREATE VIEW player_season AS
+        CREATE VIEW statsbomb_player_season AS
         SELECT pm.player_id, any_value(pm.player) AS player, any_value(pm.country) AS country,
                m.competition, m.season, string_agg(DISTINCT pm.team, ', ') AS teams,
                count(*) AS appearances, sum(pm.started::INT) AS starts, sum(pm.minutes) AS minutes,
@@ -61,12 +66,23 @@ def build(db_path: Path = DB) -> duckdb.DuckDBPyConnection:
                sum(passes) AS passes, sum(passes_completed) AS passes_completed,
                sum(tackles) AS tackles, sum(tackles_won) AS tackles_won, sum(interceptions) AS interceptions,
                sum(dribbles_completed) AS dribbles_completed, sum(fouls) AS fouls,
-               sum(yellow_cards) AS yellow_cards, sum(red_cards) AS red_cards, sum(saves) AS saves,
-               round(sum(goals) * 90.0 / nullif(sum(minutes), 0), 2) AS goals_per90,
-               round(sum(xg) * 90.0 / nullif(sum(minutes), 0), 2) AS xg_per90,
-               round(sum(tackles) * 90.0 / nullif(sum(minutes), 0), 2) AS tackles_per90
+               sum(yellow_cards) AS yellow_cards, sum(red_cards) AS red_cards, sum(saves) AS saves
         FROM player_match pm JOIN matches m USING (match_id)
         GROUP BY pm.player_id, m.competition, m.season""")
+    # One season-totals table for both sources, with the same columns and per-90 rates
+    cols = ("player_id, player, country, competition, season, teams, appearances, starts, minutes, goals, "
+            "penalty_goals, assists, shots, key_passes, passes, tackles, interceptions, dribbles_completed, fouls, "
+            "yellow_cards, red_cards, saves")
+    con.execute(f"CREATE TABLE player_season AS SELECT {cols}, xg, 'statsbomb' AS source FROM statsbomb_player_season")
+    if (api / "api_player_season.parquet").exists():
+        con.execute(f"""INSERT INTO player_season SELECT player_id, player, country, competition, season, team AS teams,
+            appearances, starts, minutes, goals, penalty_goals, assists, shots, key_passes, passes, tackles, interceptions,
+            dribbles_completed, fouls, yellow_cards, red_cards, saves, NULL AS xg, 'api-football'
+            FROM read_parquet('{api / 'api_player_season.parquet'}')""")
+    for c in ("goals", "xg", "tackles", "interceptions"):
+        con.execute(f"ALTER TABLE player_season ADD COLUMN {c}_per90 DOUBLE")
+        con.execute(f"UPDATE player_season SET {c}_per90 = round({c} * 90.0 / nullif(minutes, 0), 2)")
+    con.execute("DROP VIEW statsbomb_player_season")
     return con
 
 
@@ -75,10 +91,15 @@ def build(db_path: Path = DB) -> duckdb.DuckDBPyConnection:
 def run_tests(con) -> list[str]:
     """Each test returns rows that break a rule; any rows means failure."""
     tests = {
-        "every match has events": "SELECT match_id FROM matches WHERE match_id NOT IN (SELECT DISTINCT match_id FROM events)",
+        "every match has events": "SELECT match_id FROM matches WHERE source = 'statsbomb' AND match_id NOT IN (SELECT DISTINCT match_id FROM events)",
         "team names agree across tables": """SELECT DISTINCT p.match_id, p.team FROM player_match p JOIN matches m USING (match_id)
             WHERE p.team NOT IN (m.home_team, m.away_team)""",
         "every match has 22+ players": """SELECT match_id, count(*) n FROM player_match GROUP BY 1 HAVING n < 22""",
+        "match ids unique across sources": "SELECT match_id, count(*) n FROM matches GROUP BY 1 HAVING n > 1",
+        "API seasons are complete": """SELECT competition, count(*) n FROM matches WHERE source = 'api-football' GROUP BY 1
+            HAVING n < CASE competition WHEN 'MLS' THEN 493 WHEN 'Bundesliga' THEN 306 WHEN 'Ligue 1' THEN 306 ELSE 380 END""",
+        "season totals are sane": """SELECT player, competition FROM player_season
+            WHERE minutes < 0 OR goals < 0 OR minutes > 60 * 130 OR appearances > 60""",
         # goals in the data (shots that scored + own goals) add up to the official final score
         "goals add up to the final score": """
             WITH g AS (
@@ -90,7 +111,7 @@ def run_tests(con) -> list[str]:
             SELECT m.match_id, m.home_team, m.home_score, m.away_score,
                    coalesce(sum(n) FILTER (WHERE team = m.home_team), 0) AS home_found,
                    coalesce(sum(n) FILTER (WHERE team = m.away_team), 0) AS away_found
-            FROM matches m LEFT JOIN g USING (match_id) GROUP BY ALL
+            FROM matches m LEFT JOIN g USING (match_id) WHERE m.source = 'statsbomb' GROUP BY ALL
             HAVING home_found <> m.home_score OR away_found <> m.away_score""",
         "minutes within the match": """SELECT p.match_id, p.player FROM player_match p JOIN matches m USING (match_id)
             WHERE p.minutes < 0 OR p.minutes > m.end_minute""",

@@ -21,5 +21,7 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Unit tests
         run: python -m pytest -q
+      - name: Tables from the saved API-Football responses
+        run: python -m src.api_football_transform
       - name: Build the database and run the data tests
         run: python -m src.build

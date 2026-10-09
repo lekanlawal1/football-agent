@@ -5,3 +5,6 @@ data/*.duckdb
 __pycache__/
 .pytest_cache/
 .env
+
+# Rebuilt from the saved API responses by src.api_football_transform
+data/api_football/*.parquet
