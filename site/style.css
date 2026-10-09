@@ -93,7 +93,7 @@ details.sql pre { margin-top: 8px; background: var(--soft); border: 2px solid va
 .cov-table { max-height: none; }
 .cov-table td { white-space: normal; }
 .cov-table tbody tr:nth-child(1) td { background: none; font-weight: 400; }
-.cov-table td:first-child { font-weight: 700; }
+.cov-table tbody tr td:first-child { font-weight: 700; }
 .answer .help { margin-top: 12px; padding: 10px 12px; background: var(--soft); border-radius: 12px; font-size: 14px; }
 
 @media (max-width: 720px) { .cov, .steps, .guide .cols { grid-template-columns: 1fr; } }
