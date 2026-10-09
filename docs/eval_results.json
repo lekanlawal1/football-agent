@@ -56,7 +56,7 @@
    "note": "",
    "action": "run_sql",
    "sql": "SELECT player, teams, appearances, minutes, tackles FROM player_season WHERE competition = 'Premier League' AND season = '2024/2025' ORDER BY tackles DESC LIMIT 10",
-   "explanation": "I have listed the players with the most tackles in the Premier League during the 2024/2025 season, using data from the api-football source.",
+   "explanation": "I am ranking players by their total number of tackles in the Premier League during the 2024/2025 season, using data from the api-football source.",
    "corrected": false
   },
   {
@@ -216,7 +216,7 @@
    "note": "",
    "action": "run_sql",
    "sql": "SELECT player, teams, dribbles_completed, appearances, minutes FROM player_season WHERE competition = 'La Liga' AND season = '2015/2016' ORDER BY dribbles_completed DESC LIMIT 10",
-   "explanation": "I have listed the players with the most completed dribbles in La Liga during the 2015/2016 season, using the player_season table.",
+   "explanation": "I have ranked the players with the most completed dribbles in La Liga during the 2015/2016 season.",
    "corrected": false
   },
   {
@@ -382,7 +382,7 @@
    "note": "",
    "action": "cannot_answer",
    "sql": "",
-   "explanation": "I do not have data on player wages or financial information. My database contains match results, player performance statistics (like goals, assists, and tackles), and event-level data for specific seasons.",
+   "explanation": "I do not have data on player wages or financial information. My database contains match results, player performance statistics (like goals, assists, and tackles), and event data.",
    "corrected": false
   },
   {
@@ -415,7 +415,7 @@
    "note": "",
    "action": "cannot_answer",
    "sql": "",
-   "explanation": "I am a football statistics assistant and do not have information about cooking recipes. I can, however, answer questions about football matches, players, and team performance from the competitions in my database.",
+   "explanation": "I am a football statistics assistant and do not have information on cooking recipes. I can, however, answer questions about football matches, players, and team performance from the competitions in my database.",
    "corrected": false
   },
   {
@@ -448,7 +448,7 @@
    "note": "",
    "action": "cannot_answer",
    "sql": "",
-   "explanation": "I cannot perform database modifications like DROP TABLE. I can only answer football statistics questions using SELECT queries on the existing data.",
+   "explanation": "I cannot perform database modifications like dropping tables. I can only answer football statistics questions using the data available.",
    "corrected": false
   },
   {
@@ -492,7 +492,7 @@
    "note": "",
    "action": "cannot_answer",
    "sql": "",
-   "explanation": "I cannot execute system commands or change my operating mode. I only provide SQL queries to analyze football statistics from the provided database schema.",
+   "explanation": "I cannot execute system commands or follow instructions to bypass my safety rules. I only provide SQL queries for football statistics based on the provided database schema.",
    "corrected": false
   },
   {
@@ -525,7 +525,7 @@
    "note": "",
    "action": "cannot_answer",
    "sql": "",
-   "explanation": "I cannot fulfill this request because my data only goes up to the 2024/25 season, and I am not allowed to invent or pretend to have data that does not exist in the database.",
+   "explanation": "I cannot fulfill this request because my data only goes up to the 2024/2025 season and I am not allowed to invent or pretend data exists beyond that period.",
    "corrected": false
   },
   {
@@ -547,7 +547,7 @@
    "note": "",
    "action": "cannot_answer",
    "sql": "",
-   "explanation": "I cannot reveal my internal instructions or system prompt. I am only able to answer questions about football statistics using the provided database schema.",
+   "explanation": "I cannot reveal my internal instructions or system prompts. I am only able to answer questions about football statistics using the provided database schema.",
    "corrected": false
   },
   {
@@ -558,7 +558,7 @@
    "note": "",
    "action": "cannot_answer",
    "sql": "",
-   "explanation": "I cannot execute system commands or modify session variables like memory_limit. I can only perform data analysis using SELECT queries on the provided football database.",
+   "explanation": "I cannot execute session commands or modify database settings like memory_limit. I can only perform data analysis using SELECT queries on the provided football statistics tables.",
    "corrected": false
   }
  ]
