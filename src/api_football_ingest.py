@@ -3,10 +3,13 @@
 The free plan reads seasons 2022 to 2024 only (checked by src.api_football_check), so this fetches
 the newest season it allows: 2024/25 for the top 5 European leagues and the 2024 MLS season.
 
-Cost-saving design:
-- /fixtures?ids=a-b-c returns up to 20 matches per request *with* events, lineups and every
-  player's statistics, so a season of about 2,260 matches costs about 115 requests, not 2,260.
-- Each match is saved once as data/api_football/fixtures/<id>.json.gz and committed by the workflow,
+The free plan does not allow fetching several matches per request (the ids parameter), so a match
+costs one request: about 2,280 for the six seasons, roughly 25 daily runs. To be useful early:
+1. Season totals first: /players returns every player's full-season statistics, 20 players per
+   request, so all six leagues take a few runs. Season questions work from then on.
+2. Then per-match detail (events with minutes, lineups, player statistics), newest matches first
+   across all leagues, so the end of the season fills in first.
+- Each page and match is saved once as data/api_football/fixtures/<id>.json.gz and committed by the workflow,
   so progress survives between runs and nothing is downloaded twice.
 - Each run spends at most BUDGET requests (default 90 of 100) and stops early when the API reports
   the daily limit. When everything is downloaded it spends one request (the status check) and stops.
@@ -32,7 +35,6 @@ BASE = "https://v3.football.api-sports.io"
 TARGETS = {39: ("Premier League", 2024), 140: ("La Liga", 2024), 135: ("Serie A", 2024),
            78: ("Bundesliga", 2024), 61: ("Ligue 1", 2024), 253: ("MLS", 2024)}
 FINISHED = {"FT", "AET", "PEN"}
-BATCH = 20                 # most ids /fixtures accepts in one request
 PAUSE = 7                  # seconds between requests: stays under the free per-minute limit
 
 
@@ -92,32 +94,59 @@ def main(budget: int = 90) -> int:
                 break
         lists[lid] = load_gz(p)
 
-    # 2. full details for finished matches not downloaded yet, 20 per request
-    have = {int(f.name.split(".")[0]) for f in (OUT / "fixtures").glob("*.json.gz")}
-    todo = [f["fixture"]["id"] for lid in lists for f in lists[lid]
-            if f["fixture"]["status"]["short"] in FINISHED and f["fixture"]["id"] not in have]
-    total = sum(1 for lid in lists for f in lists[lid] if f["fixture"]["status"]["short"] in FINISHED)
-    got = 0
-    for i in range(0, len(todo), BATCH):
-        ids = todo[i:i + BATCH]
-        try:
-            resp = api.get("fixtures", ids="-".join(map(str, ids)))["response"]
-        except RuntimeError as err:
-            report.append(f"Stopped: {err}")
+    # 2. season totals for every player, page by page (resumable)
+    pages_got = 0
+    for lid, (name, season) in TARGETS.items():
+        if lid not in lists:
+            continue
+        page, total_pages = 1, None
+        while True:
+            p = OUT / "players" / f"{lid}_{season}_{page}.json.gz"
+            if p.exists():
+                total_pages = load_gz(p)["paging"]["total"]
+            else:
+                try:
+                    body = api.get("players", league=lid, season=season, page=page)
+                except RuntimeError as err:
+                    report.append(f"Stopped in {name} player totals, page {page}: {err}")
+                    break
+                save_gz(p, {"paging": body["paging"], "response": body["response"]})
+                total_pages = body["paging"]["total"]
+                pages_got += 1
+            if page >= total_pages:
+                break
+            page += 1
+        if api.used >= api.limit:
             break
-        for fx in resp:
-            save_gz(OUT / "fixtures" / f"{fx['fixture']['id']}.json.gz", fx)
-            got += 1
-        missing = set(ids) - {fx["fixture"]["id"] for fx in resp}
-        if missing:
-            report.append(f"Asked for {len(ids)} matches, got {len(resp)}; missing {sorted(missing)[:5]}")
+    players_done = all(
+        (OUT / "players" / f"{lid}_{season}_1.json.gz").exists() and
+        (OUT / "players" / f"{lid}_{season}_{load_gz(OUT / 'players' / f'{lid}_{season}_1.json.gz')['paging']['total']}.json.gz").exists()
+        for lid, (_, season) in TARGETS.items())
+    report.append(f"Season totals: {pages_got} page(s) this run; all six leagues complete: {players_done}.")
+
+    # 3. per-match detail, newest finished matches first, one request each
+    have = {int(f.name.split(".")[0]) for f in (OUT / "fixtures").glob("*.json.gz")}
+    finished = [f for lid in lists for f in lists[lid] if f["fixture"]["status"]["short"] in FINISHED]
+    finished.sort(key=lambda f: f["fixture"]["timestamp"], reverse=True)
+    todo = [f["fixture"]["id"] for f in finished if f["fixture"]["id"] not in have]
+    total = len(finished)
+    got = 0
+    if players_done:
+        for fid in todo:
+            try:
+                resp = api.get("fixtures", id=fid)["response"]
+            except RuntimeError as err:
+                report.append(f"Stopped: {err}")
+                break
+            if resp:
+                save_gz(OUT / "fixtures" / f"{fid}.json.gz", resp[0])
+                got += 1
 
     done = len(have) + got
     report.append(f"Downloaded {got} matches this run. Progress: {done} of {total} finished matches "
                   f"in {len(lists)} league seasons. Requests spent this run: {api.used}.")
     if done < total:
-        per_run = max(1, (api.limit - 1)) * BATCH
-        report.append(f"About {-(-(total - done) // per_run)} more daily run(s) to finish.")
+        report.append(f"About {-(-(total - done) // 88)} more daily run(s) to finish the match detail.")
     text = "\n".join(report)
     print(text)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
