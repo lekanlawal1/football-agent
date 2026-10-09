@@ -21,6 +21,7 @@ import duckdb
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "statsbomb"
 DB = ROOT / "data" / "football.duckdb"
+COMPETITION_NAMES = {"1. Bundesliga": "Bundesliga", "Major League Soccer": "MLS"}
 
 
 def build(db_path: Path = DB) -> duckdb.DuckDBPyConnection:
@@ -52,11 +53,35 @@ def build(db_path: Path = DB) -> duckdb.DuckDBPyConnection:
         shots = DATA / "shots.parquet"
     con.execute(f"CREATE TABLE shots AS SELECT * FROM read_parquet('{shots}')")
     con.execute("ALTER TABLE shots ADD COLUMN IF NOT EXISTS model_xg DOUBLE")   # before src.xg has run
+    # One name per competition across both sources (StatsBomb says "1. Bundesliga", API-Football "Bundesliga")
+    for old, new in COMPETITION_NAMES.items():
+        for t in ("matches", "shots"):
+            con.execute(f"UPDATE {t} SET competition = ? WHERE competition = ?", [new, old])
+    # Positions: StatsBomb records the player's position on every event; a player's position in a match is
+    # the one he played most. Grouped into the four positions fans use.
+    con.execute("ALTER TABLE player_match ADD COLUMN position VARCHAR")
+    con.execute("ALTER TABLE player_match ADD COLUMN position_group VARCHAR")
+    con.execute("""UPDATE player_match SET position = e.pos FROM (
+        SELECT match_id, player_id, mode(position) AS pos FROM events
+        WHERE position IS NOT NULL AND position <> 'Substitute' GROUP BY ALL) e
+        WHERE player_match.match_id = e.match_id AND player_match.player_id = e.player_id""")
+    con.execute("""UPDATE player_match SET position_group = CASE
+        WHEN position = 'Goalkeeper' THEN 'Goalkeeper'
+        WHEN position LIKE '%Back%' THEN 'Defender'
+        WHEN position LIKE '%Midfield%' THEN 'Midfielder'
+        WHEN position IS NOT NULL THEN 'Forward' END""")
     # API-Football 2024/25 (results for every match; season totals per player, club by club)
     api = ROOT / "data" / "api_football"
     if (api / "api_matches.parquet").exists():
         con.execute(f"""INSERT INTO matches SELECT match_id, competition, season, CAST(date AS DATE), home_team, away_team,
             home_score, away_score, stage, NULL, 'api-football' FROM read_parquet('{api / 'api_matches.parquet'}')""")
+    # League-table questions should leave out playoffs (Bundesliga and Ligue 1 relegation play-offs against
+    # second-division clubs, MLS Cup playoffs) and tournaments
+    con.execute("ALTER TABLE matches ADD COLUMN regular_season BOOLEAN")
+    con.execute("""UPDATE matches SET regular_season = CASE
+        WHEN competition IN ('FIFA World Cup', 'UEFA Euro', 'Copa America') THEN false
+        WHEN source = 'api-football' THEN stage LIKE 'Regular Season%'
+        ELSE true END""")
     con.execute("""
         CREATE VIEW statsbomb_player_season AS
         SELECT pm.player_id, any_value(pm.player) AS player, any_value(pm.country) AS country,
@@ -67,18 +92,20 @@ def build(db_path: Path = DB) -> duckdb.DuckDBPyConnection:
                sum(passes) AS passes, sum(passes_completed) AS passes_completed,
                sum(tackles) AS tackles, sum(tackles_won) AS tackles_won, sum(interceptions) AS interceptions,
                sum(dribbles_completed) AS dribbles_completed, sum(fouls) AS fouls,
-               sum(yellow_cards) AS yellow_cards, sum(red_cards) AS red_cards, sum(saves) AS saves
+               sum(yellow_cards) AS yellow_cards, sum(red_cards) AS red_cards, sum(saves) AS saves,
+               mode(pm.position_group) AS position_group
         FROM player_match pm JOIN matches m USING (match_id)
         GROUP BY pm.player_id, m.competition, m.season""")
     # One season-totals table for both sources, with the same columns and per-90 rates
     cols = ("player_id, player, country, competition, season, teams, appearances, starts, minutes, goals, "
             "penalty_goals, assists, shots, key_passes, passes, tackles, interceptions, dribbles_completed, fouls, "
-            "yellow_cards, red_cards, saves")
+            "yellow_cards, red_cards, saves, position_group")
     con.execute(f"CREATE TABLE player_season AS SELECT {cols}, xg, 'statsbomb' AS source FROM statsbomb_player_season")
     if (api / "api_player_season.parquet").exists():
         con.execute(f"""INSERT INTO player_season SELECT player_id, player, country, competition, season, team AS teams,
             appearances, starts, minutes, goals, penalty_goals, assists, shots, key_passes, passes, tackles, interceptions,
-            dribbles_completed, fouls, yellow_cards, red_cards, saves, NULL AS xg, 'api-football'
+            dribbles_completed, fouls, yellow_cards, red_cards, saves,
+            CASE position WHEN 'Attacker' THEN 'Forward' ELSE position END, NULL AS xg, 'api-football'
             FROM read_parquet('{api / 'api_player_season.parquet'}')""")
     for c in ("goals", "xg", "tackles", "interceptions"):
         con.execute(f"ALTER TABLE player_season ADD COLUMN {c}_per90 DOUBLE")
@@ -88,14 +115,30 @@ def build(db_path: Path = DB) -> duckdb.DuckDBPyConnection:
     # that wrong in the evaluation: it ranked home goals alone).
     con.execute("""
         CREATE TABLE team_match AS
-        SELECT match_id, competition, season, date, stage, source, home_team AS team, away_team AS opponent,
+        SELECT match_id, competition, season, date, stage, regular_season, source, home_team AS team, away_team AS opponent,
                'home' AS venue, home_score AS goals_for, away_score AS goals_against FROM matches
         UNION ALL
-        SELECT match_id, competition, season, date, stage, source, away_team, home_team,
+        SELECT match_id, competition, season, date, stage, regular_season, source, away_team, home_team,
                'away', away_score, home_score FROM matches""")
     con.execute("""ALTER TABLE team_match ADD COLUMN result VARCHAR""")
     con.execute("""UPDATE team_match SET result = CASE WHEN goals_for > goals_against THEN 'W'
                    WHEN goals_for < goals_against THEN 'L' ELSE 'D' END""")
+    # First-half score (StatsBomb matches only: it needs the goals' minutes). An own goal counts for the
+    # other team.
+    con.execute("ALTER TABLE team_match ADD COLUMN ht_goals_for INTEGER")
+    con.execute("ALTER TABLE team_match ADD COLUMN ht_goals_against INTEGER")
+    con.execute("""
+        WITH g AS (
+          SELECT match_id, team FROM shots WHERE is_goal AND period = 1
+          UNION ALL
+          SELECT e.match_id, CASE WHEN e.team = m.home_team THEN m.away_team ELSE m.home_team END
+          FROM events e JOIN matches m USING (match_id) WHERE e.type = 'Own Goal' AND e.period = 1),
+        t AS (SELECT tm.match_id, tm.team,
+                     count(*) FILTER (WHERE g.team = tm.team) AS gf, count(*) FILTER (WHERE g.team = tm.opponent) AS ga
+              FROM team_match tm LEFT JOIN g ON g.match_id = tm.match_id
+              WHERE tm.source = 'statsbomb' GROUP BY ALL)
+        UPDATE team_match SET ht_goals_for = t.gf, ht_goals_against = t.ga FROM t
+        WHERE team_match.match_id = t.match_id AND team_match.team = t.team""")
     return con
 
 
@@ -108,6 +151,16 @@ def run_tests(con) -> list[str]:
             ON a.match_id = b.match_id AND a.venue = 'home' AND b.venue = 'away'
             WHERE a.goals_for <> b.goals_against OR a.goals_against <> b.goals_for
             UNION ALL SELECT match_id FROM team_match GROUP BY 1 HAVING count(*) <> 2""",
+        "one name per competition": f"""SELECT DISTINCT competition FROM matches
+            WHERE competition IN ({", ".join(repr(k) for k in COMPETITION_NAMES)})""",
+        "league seasons have a full regular season": """SELECT competition, season, count(*) n FROM matches
+            WHERE regular_season AND source = 'api-football' AND competition <> 'MLS' GROUP BY ALL
+            HAVING n NOT IN (306, 380)""",
+        "first-half goals within full-time goals": """SELECT match_id, team FROM team_match WHERE source = 'statsbomb'
+            AND (ht_goals_for IS NULL OR ht_goals_for > goals_for OR ht_goals_against > goals_against)""",
+        # a starter with no events has no position: allow a handful (28 when this was written), not more
+        "starters have a position": """SELECT count(*) n FROM player_match WHERE started AND position_group IS NULL
+            HAVING n > 50""",
         "every match has events": "SELECT match_id FROM matches WHERE source = 'statsbomb' AND match_id NOT IN (SELECT DISTINCT match_id FROM events)",
         "team names agree across tables": """SELECT DISTINCT p.match_id, p.team FROM player_match p JOIN matches m USING (match_id)
             WHERE p.team NOT IN (m.home_team, m.away_team)""",

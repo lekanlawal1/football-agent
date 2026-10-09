@@ -91,7 +91,13 @@ def main() -> None:
         examples.append({"question": q, "explanation": expl, "sql": " ".join(sql.split()), "columns": cols, "rows": rows})
     (OUT / "examples.json").write_text(json.dumps(examples))
     built = con.execute("SELECT max(date) FILTER (WHERE source = 'api-football'), count(*) FROM matches").fetchone()
-    (OUT / "meta.json").write_text(json.dumps({"latest_match": clean(built[0]), "matches": built[1]}))
+    # Coverage for the page's "what you can ask" guide, so it always matches the published data
+    coverage = [dict(zip(("competition", "season", "source", "matches", "player_rows"), r)) for r in con.execute("""
+        SELECT m.competition, m.season, m.source, count(DISTINCT m.match_id),
+               (SELECT count(*) FROM player_season p WHERE p.competition = m.competition AND p.season = m.season)
+        FROM matches m GROUP BY ALL ORDER BY m.source DESC, m.competition, m.season""").fetchall()]
+    (OUT / "meta.json").write_text(json.dumps({"latest_match": clean(built[0]), "matches": built[1],
+                                               "coverage": coverage}))
     print(f"examples.json  {len(examples)} examples")
 
 
