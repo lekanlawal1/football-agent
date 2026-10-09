@@ -83,7 +83,13 @@ function rowsOf(result) {
   const cols = result.schema.fields.map((f) => f.name);
   const rows = result.toArray().map((r) => cols.map((c) => {
     const v = r[c];
-    return typeof v === "bigint" ? Number(v) : v;
+    if (typeof v === "bigint") return Number(v);
+    // SUM() returns HUGEINT and round() DECIMAL; Arrow hands those back as objects, not numbers
+    if (v !== null && typeof v === "object" && !(v instanceof Date)) {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+    return v;
   }));
   return { cols, rows };
 }
