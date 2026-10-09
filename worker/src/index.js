@@ -20,6 +20,13 @@ const CACHE_DAYS = 7;
 const ALLOWED_ORIGINS = ["https://lekanlawal1.github.io", "http://localhost:8770"];
 
 const SYSTEM = PROMPT.replace("{schema}", SCHEMA);
+// Fingerprint of the model, prompt and schema (FNV-1a), part of the cache key: a deploy that changes
+// any of them never serves answers made under the old version.
+const VERSION = (() => {
+  let h = 0x811c9dc5;
+  for (const ch of MODEL + SYSTEM) h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193) >>> 0;
+  return h.toString(36);
+})();
 const RESPONSE_SCHEMA = {
   type: "OBJECT",
   properties: {
@@ -80,7 +87,7 @@ export default {
     if (!question) return json({ error: "empty question" }, 400, origin);
 
     // Cache first: a repeated question costs nothing and does not count against the visitor.
-    const key = new Request(`https://cache.football-agent/${encodeURIComponent(question.toLowerCase().replace(/\s+/g, " "))}`);
+    const key = new Request(`https://cache.football-agent/${VERSION}/${encodeURIComponent(question.toLowerCase().replace(/\s+/g, " "))}`);
     const cache = caches.default;
     if (!feedback) {
       const hit = await cache.match(key);
