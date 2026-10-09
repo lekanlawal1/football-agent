@@ -1,0 +1,16 @@
+# Cloudflare Worker for the Football Stats Agent. Deployed by .github/workflows/deploy-worker.yml.
+name = "football-agent"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+# The prompt and schema are bundled as text, so the Worker always ships with the same
+# instructions the evaluation tested.
+rules = [{ type = "Text", globs = ["**/*.md"], fallthrough = true }]
+
+# 8 questions per minute per visitor (free on every plan)
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 8, period = 60 }
+
+# GEMINI_API_KEY is set as an encrypted secret by the deploy workflow, never in this file.

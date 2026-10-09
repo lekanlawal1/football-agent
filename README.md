@@ -5,8 +5,35 @@ Ask football questions in plain English and get answers computed with real SQL, 
 "Which strikers scored the most above their expected goals?" When the data cannot answer a question,
 the agent says so instead of guessing.
 
-**Status:** the data foundation and the xG model are built and tested. The agent, live data and the
-web page are next (see Roadmap).
+**Status:** data, xG model, agent, web page and evaluation are built. The 2024/25 season data fills in
+daily within the free API quota. Going live needs the hosting set up (see Roadmap).
+
+## How it works
+
+```
+question -> Cloudflare Worker -> Gemini decides: run_sql | clarify | cannot_answer
+         -> the page checks the SQL (one SELECT, no file or URL functions) and EXPLAINs it against the
+            real tables; a failure goes back to the model once, a second failure is reported
+         -> DuckDB runs it in your browser on the published parquet files (only the parts it needs)
+```
+
+- **The SQL runs in the visitor's browser** (DuckDB-WASM). There is no database server to keep awake
+  or attack, so the page never sleeps.
+- **The Worker** keeps the Gemini key secret, rate-limits each visitor, caches repeated questions, and
+  only ever returns a single SELECT. The page enforces the same check again before running anything.
+- **One prompt, one schema, everywhere.** `agent/system_prompt.md` and `docs/schema.md` (generated
+  from the live database) are bundled into the Worker and used by the evaluation, so what was tested
+  is what runs. The deploy fails if the schema guide is out of date.
+- **Instant examples**: the example questions show answers computed at build time from SQL written and
+  checked by hand, before the in-browser database has even loaded.
+
+## Evaluation
+
+`python -m src.evaluate` (needs `GEMINI_API_KEY`) runs `eval/questions.jsonl` through the same pipeline:
+22 questions with hand-written gold SQL (the agent's top row must name the same player and the same
+number), 6 that need a clarifying question, 8 the data cannot answer, and 12 attacks (prompt
+injection, write attempts, file and URL reads, prompt extraction, fabrication). Results:
+`docs/eval_results.md`.
 
 ## What is in it
 
@@ -62,12 +89,10 @@ python -m pytest -q
 
 ## Roadmap
 
-1. Live data: confirm what API-Football's free plan serves, then a daily update for the top 5 and MLS.
-2. The agent: plain English to read-only SQL, with the guardrails from the earlier NL-to-SQL project
-   (schema grounding, SELECT only, verified before it runs, row and time caps).
-3. A web page that never sleeps: static page plus a small Cloudflare Worker that keeps the AI key
-   private, rate-limits and caches.
-4. Evaluation: 50 questions with hand-checked answers, and 30 attempts to misuse it.
+1. Hosting: GitHub Pages for the page, Cloudflare Worker for the model call (workflows are ready).
+2. 2024/25 data: season totals first (a few days), then match by match, newest first (about 25 days
+   within the free plan; checked by `src/api_football_check.py`: the free plan serves 2022 to 2024 only).
+3. Grow the evaluation to 50 answer questions and 30 attacks.
 
 ## Credits
 
