@@ -2,6 +2,7 @@
 
 Tables the agent can query (documented in docs/schema.md, which is also what the model is shown):
   matches       one row per match
+  team_match    one row per team per match (both sources): goals for and against, result
   player_match  one row per player per match: minutes and totals
   events        key on-ball events with the minute they happened
   shots         every shot, with StatsBomb's xG and this project's model_xg
@@ -83,6 +84,18 @@ def build(db_path: Path = DB) -> duckdb.DuckDBPyConnection:
         con.execute(f"ALTER TABLE player_season ADD COLUMN {c}_per90 DOUBLE")
         con.execute(f"UPDATE player_season SET {c}_per90 = round({c} * 90.0 / nullif(minutes, 0), 2)")
     con.execute("DROP VIEW statsbomb_player_season")
+    # One row per team per match, so a team's season totals never need a home/away UNION (the model got
+    # that wrong in the evaluation: it ranked home goals alone).
+    con.execute("""
+        CREATE TABLE team_match AS
+        SELECT match_id, competition, season, date, stage, source, home_team AS team, away_team AS opponent,
+               'home' AS venue, home_score AS goals_for, away_score AS goals_against FROM matches
+        UNION ALL
+        SELECT match_id, competition, season, date, stage, source, away_team, home_team,
+               'away', away_score, home_score FROM matches""")
+    con.execute("""ALTER TABLE team_match ADD COLUMN result VARCHAR""")
+    con.execute("""UPDATE team_match SET result = CASE WHEN goals_for > goals_against THEN 'W'
+                   WHEN goals_for < goals_against THEN 'L' ELSE 'D' END""")
     return con
 
 
@@ -91,6 +104,10 @@ def build(db_path: Path = DB) -> duckdb.DuckDBPyConnection:
 def run_tests(con) -> list[str]:
     """Each test returns rows that break a rule; any rows means failure."""
     tests = {
+        "two team rows per match, goals mirrored": """SELECT a.match_id FROM team_match a JOIN team_match b
+            ON a.match_id = b.match_id AND a.venue = 'home' AND b.venue = 'away'
+            WHERE a.goals_for <> b.goals_against OR a.goals_against <> b.goals_for
+            UNION ALL SELECT match_id FROM team_match GROUP BY 1 HAVING count(*) <> 2""",
         "every match has events": "SELECT match_id FROM matches WHERE source = 'statsbomb' AND match_id NOT IN (SELECT DISTINCT match_id FROM events)",
         "team names agree across tables": """SELECT DISTINCT p.match_id, p.team FROM player_match p JOIN matches m USING (match_id)
             WHERE p.team NOT IN (m.home_team, m.away_team)""",
@@ -142,7 +159,7 @@ def run_tests(con) -> list[str]:
 
 def main() -> None:
     con = build()
-    for t in ("matches", "player_match", "events", "shots"):
+    for t in ("matches", "team_match", "player_match", "events", "shots"):
         print(f"{t}: {con.execute(f'SELECT count(*) FROM {t}').fetchone()[0]:,}")
     failures = run_tests(con)
     con.close()

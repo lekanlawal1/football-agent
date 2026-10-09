@@ -22,6 +22,7 @@ OUT = ROOT / "site" / "data"
 
 EXPORTS = {
     "matches": "SELECT * FROM matches ORDER BY source, competition, season, date",
+    "team_match": "SELECT * FROM team_match ORDER BY source, competition, season, team, date",
     "player_season": "SELECT * FROM player_season ORDER BY source, competition, season, player",
     "player_match": "SELECT * FROM player_match ORDER BY match_id, team",
     "events": "SELECT e.* FROM events e JOIN matches m USING (match_id) ORDER BY e.type, m.competition, m.season, e.match_id, e.minute",
