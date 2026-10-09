@@ -37,13 +37,33 @@ function show({ question, tag, explanation, columns, rows, sql, extra = "", meta
   el.innerHTML = `<div>${tag}</div><p class="q">${esc(question)}</p>
     ${explanation ? `<p class="expl">${esc(explanation)}</p>` : ""}
     ${extra}
-    ${columns ? (rows.length ? table(columns, rows) : `<p class="expl">The query ran and found no rows.</p>`) : ""}
-    ${sql ? `<details class="sql"><summary>Show the SQL that ran</summary><pre>${esc(sql)}</pre></details>` : ""}
+    ${columns ? (rows.length ? table(columns, rows) : `<p class="help">${emptyHelp(sql)}</p>`) : ""}
+    ${sql ? `<details class="sql"><summary>Show the query behind this answer</summary><pre>${esc(sql)}</pre></details>` : ""}
     ${meta ? `<p class="meta">${meta}</p>` : ""}`;
   el.hidden = false;
   el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
 }
 const status = (t) => { $("status").textContent = t; };
+
+// ------------------------------------------------------------------ coverage (what's loaded so far)
+// 2024/25 player totals arrive a few clubs a day within the free API quota; say which leagues are ready.
+let stillLoading = [];
+fetch("data/meta.json").then((r) => r.json()).then((meta) => {
+  stillLoading = (meta.coverage || []).filter((c) => c.source === "api-football" && c.player_rows === 0)
+    .map((c) => `${c.competition} ${c.season.replace("/20", "/")}`);
+  if (stillLoading.length) {
+    $("loading-note").textContent = `Still loading: 2024/25 player totals for ${stillLoading.join(", ")}. A few clubs arrive each day ` +
+      "(the free data plan allows 100 requests a day). Results for those seasons are already complete.";
+  }
+}).catch(() => {});
+
+function emptyHelp(sql) {
+  const loading = stillLoading.filter((x) => (sql || "").includes(x.split(" ").slice(0, -1).join(" ")));
+  if (loading.length && /2024/.test(sql || "")) {
+    return `Nothing found yet: player totals for ${loading.join(", ")} are still loading, a few clubs a day. Try the Premier League 2024/25, or a 2015/16 season.`;
+  }
+  return `The query ran but found nothing. Check the season and competition are <a href="#guide">in the data</a>, or try wording it differently.`;
+}
 
 // ------------------------------------------------------------------ examples (instant)
 let examples = [];
@@ -57,7 +77,7 @@ fetch("data/examples.json").then((r) => r.json()).then((list) => {
     $("q").value = x.question;
     show({ question: x.question, tag: `<span class="tag inst">Instant answer</span><span class="tag ok">Checked by hand</span>`,
       explanation: x.explanation, columns: x.columns, rows: x.rows, sql: x.sql,
-      meta: "Example answers are computed when the site is built, from SQL written and checked by hand. Ask your own question above to use the AI." });
+      meta: "This example was worked out and checked by hand ahead of time, so it's instant. Type your own question to use the AI." });
   });
 }).catch(() => {});
 
@@ -121,7 +141,8 @@ async function ask(question) {
           extra: `<p class="clarify">${esc(d.clarifying_question)}</p>`, meta: "Rather than guess, it asks. Add the detail to your question and ask again." });
       }
       if (d.action === "cannot_answer") {
-        return show({ question, tag: `<span class="tag no">The data can't answer this</span>`, explanation: d.explanation });
+        return show({ question, tag: `<span class="tag no">The data can't answer this</span>`, explanation: d.explanation,
+          extra: `<p class="help">See <a href="#guide">what you can ask</a> for the kinds of questions that work.</p>` });
       }
       if (d.action === "blocked") {
         return show({ question, tag: `<span class="tag no">Blocked</span>`, explanation: `The generated query failed a safety check (${d.detail}), so it was never run.`, sql: d.sql });
@@ -154,7 +175,7 @@ async function ask(question) {
       const secs = ((performance.now() - t0) / 1000).toFixed(1);
       return show({ question, tag: `<span class="tag ok">Answered with SQL</span>${d.cached ? `<span class="tag inst">Cached</span>` : ""}${attempt === 2 ? `<span class="tag ask">Self-corrected once</span>` : ""}`,
         explanation: d.explanation, columns: cols, rows: rows.slice(0, ROW_CAP), sql: d.sql,
-        meta: `${capped ? `First ${ROW_CAP} rows shown. ` : ""}Ran in your browser in ${secs}s. Check the SQL: every number comes from it.` });
+        meta: `${capped ? `First ${ROW_CAP} rows shown. ` : ""}Worked out in your browser in ${secs}s. Every number comes from the query above.` });
     }
   } catch (err) {
     show({ question, tag: `<span class="tag no">Something went wrong</span>`, explanation: err.message });
@@ -162,6 +183,15 @@ async function ask(question) {
     go.disabled = false; delete $("status").dataset.busy; status("");
   }
 }
+
+// "Try it" buttons in the guide ask their question straight away
+document.querySelector(".guide").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-q]");
+  if (!b) return;
+  $("q").value = b.dataset.q;
+  $("ask").requestSubmit();
+  $("q").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+});
 
 $("ask").addEventListener("submit", (e) => {
   e.preventDefault();

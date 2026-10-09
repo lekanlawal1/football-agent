@@ -66,7 +66,37 @@ details.sql pre { margin-top: 8px; background: var(--soft); border: 2px solid va
 .note { color: var(--muted); font-size: 14px; margin-top: 14px; }
 .foot { padding: 30px 20px 44px; color: var(--muted); font-size: 13.5px; }
 
-@media (max-width: 720px) { .cov { grid-template-columns: 1fr; } }
+.hint { margin: 12px 2px 0; font-size: 14px; color: var(--ink-2); }
+
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 26px 0 8px; }
+.steps > div { background: var(--card); border: 2.5px solid var(--ink); border-radius: 16px; padding: 14px 16px; box-shadow: 4px 4px 0 var(--ink); }
+.steps i { font: 800 15px "Bricolage Grotesque", Inter, sans-serif; font-style: normal; display: inline-grid; place-items: center; width: 28px; height: 28px; border: 2px solid var(--ink); border-radius: 50%; background: var(--accent); margin-bottom: 6px; }
+.steps b, .guide li b { display: block; font: 800 1.05rem "Bricolage Grotesque", Inter, sans-serif; }
+.steps span { font-size: 14px; color: var(--ink-2); }
+
+.guide { margin: 34px 0 10px; scroll-margin-top: 80px; }
+.guide h2 { font: 800 1.6rem "Bricolage Grotesque", Inter, sans-serif; letter-spacing: -.02em; margin-bottom: 12px; }
+.guide h2.sub { font-size: 1.3rem; margin: 30px 0 10px; }
+.guide .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.guide .col { background: var(--card); border: 2.5px solid var(--ink); border-radius: 16px; padding: 16px 18px; box-shadow: 4px 4px 0 var(--ink); }
+.guide .col h3 { font: 800 1.1rem "Bricolage Grotesque", Inter, sans-serif; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.guide .col h3::before { content: ""; width: 22px; height: 22px; border: 2px solid var(--ink); border-radius: 50%; flex: none; background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3L15 6.5' fill='none' stroke='%231D1535' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat; }
+.guide .col.no h3::before { background: #FFD3D8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M6 6l8 8M14 6l-8 8' fill='none' stroke='%231D1535' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E") center/14px no-repeat; }
+.guide ul { list-style: none; padding: 0; }
+.guide li { padding: 10px 0; border-top: 1.5px solid var(--line); display: grid; grid-template-columns: 1fr auto; column-gap: 10px; align-items: center; }
+.guide li:first-child { border-top: 0; }
+.guide li span { grid-column: 1; font-size: 14px; color: var(--ink-2); }
+.guide li b { grid-column: 1; font-size: 1rem; }
+.guide li button { grid-column: 2; grid-row: 1 / span 2; font: 700 13px Inter, sans-serif; padding: 6px 12px; border: 2px solid var(--ink); border-radius: 999px; background: var(--soft); color: var(--ink); cursor: pointer; transition: transform .15s; }
+.guide li button:hover { transform: translateY(-2px); background: var(--accent); }
+.guide .tip { margin-top: 10px; padding: 10px 12px; background: var(--soft); border-radius: 12px; font-size: 14px; color: var(--ink-2); }
+.cov-table { max-height: none; }
+.cov-table td { white-space: normal; }
+.cov-table tbody tr:nth-child(1) td { background: none; font-weight: 400; }
+.cov-table td:first-child { font-weight: 700; }
+.answer .help { margin-top: 12px; padding: 10px 12px; background: var(--soft); border-radius: 12px; font-size: 14px; }
+
+@media (max-width: 720px) { .cov, .steps, .guide .cols { grid-template-columns: 1fr; } }
 @media (max-width: 560px) {
   .wrap, .topbar .in { padding-left: 16px; padding-right: 16px; }
   .topbar .pill { display: none; }

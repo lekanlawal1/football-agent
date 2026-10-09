@@ -14,17 +14,17 @@
 </head>
 <body>
 <nav class="topbar"><div class="in">
-  <a class="home" href="https://lekanlawal1.github.io/portfolio-site/#agent"><span class="dot">LL</span>Lekan Lawal</a>
+  <a class="home" href="https://lekanlawal1.github.io/portfolio-site/#football"><span class="dot">LL</span>Lekan Lawal</a>
   <a class="pill" href="https://github.com/lekanlawal1/football-agent">Code and method</a>
 </div></nav>
 <div class="band"></div>
 
 <main class="wrap">
   <header class="hero">
-    <span class="eyebrow">AI agent · SQL in your browser · expected goals model</span>
-    <h1>Ask the <span class="hl">football</span> database</h1>
-    <p class="lead">Plain-English questions, answered with a real SQL query you can read. It asks when a question
-      is ambiguous and says so when the data can't answer, instead of guessing.</p>
+    <span class="eyebrow">Real match data · answers you can check</span>
+    <h1>Ask a <span class="hl">football</span> question</h1>
+    <p class="lead">Type a question the way you'd ask a friend. It looks the answer up in real match data and
+      shows you a table, plus the exact query it used, so you can see how it got there.</p>
   </header>
 
   <form class="ask" id="ask">
@@ -32,20 +32,59 @@
       placeholder="e.g. Who made the most tackles after the 75th minute in La Liga 2015/16?" aria-label="Your question">
     <button type="submit" class="btn primary" id="go">Ask</button>
   </form>
+  <p class="hint">New here? Tap a question below for an instant answer, or see <a href="#guide">what you can ask</a>.</p>
   <div class="examples" id="examples" aria-label="Example questions"></div>
   <p class="status" id="status" role="status"></p>
 
   <section id="answer" class="answer" hidden></section>
 
-  <section class="coverage">
-    <h2>What it knows</h2>
-    <div class="cov">
-      <div><b>Minute by minute</b><span>Premier League, La Liga, Serie A, Ligue 1, complete 2015/16 seasons; World Cups 2018 and 2022; Euro 2020 and 2024; Copa America 2024. Every tackle, shot, foul and card, with its minute.</span></div>
-      <div><b>Season totals</b><span>Top 5 European leagues 2024/25 and MLS 2024: tackles, goals, assists, cards and more for every player, and every result.</span></div>
-      <div><b>Expected goals</b><span>Its own xG model, about as accurate as StatsBomb's professional one (ROC AUC 0.804 vs 0.812), on 46,000 shots.</span></div>
+  <section class="steps" aria-label="How it works">
+    <div><i>1</i><b>You ask</b><span>In plain English. Name the league and season for the best answer.</span></div>
+    <div><i>2</i><b>AI writes a query</b><span>Google's Gemini turns your question into a database query. It's checked so it can only read data.</span></div>
+    <div><i>3</i><b>Your browser runs it</b><span>The answer is worked out on your device. Tap "Show the query" under any answer to see how.</span></div>
+  </section>
+
+  <section class="guide" id="guide">
+    <h2>What you can ask</h2>
+    <div class="cols">
+      <div class="col yes">
+        <h3>Questions it can answer</h3>
+        <ul>
+          <li><b>When things happened in a match</b><span>tackles, shots, fouls, cards and goals by minute or by half</span><button type="button" data-q="Who made the most tackles after the 75th minute in La Liga 2015/16?">Try it</button></li>
+          <li><b>Positions and clean sheets</b><span>defenders, midfielders, goalkeepers; clean sheets for a match or a half</span><button type="button" data-q="Which defenders kept the most first-half clean sheets in home games in the 2015/16 Premier League?">Try it</button></li>
+          <li><b>Season totals for players</b><span>goals, assists, tackles, interceptions, cards, saves, minutes, per 90</span><button type="button" data-q="Who had the most tackles in the Premier League 2024/25?">Try it</button></li>
+          <li><b>Teams and results</b><span>goals for and against, home and away, wins, scores</span><button type="button" data-q="Which team won the most home games in the Premier League 2024/25?">Try it</button></li>
+          <li><b>Shot quality (expected goals)</b><span>who finished better or worse than their chances</span><button type="button" data-q="Who scored the most goals above their expected goals in Serie A 2015/16, minimum 40 shots?">Try it</button></li>
+        </ul>
+      </div>
+      <div class="col no">
+        <h3>Questions it can't answer</h3>
+        <ul>
+          <li><b>Anything after the 2024/25 season</b><span>The free data plan stops there, so no current season.</span></li>
+          <li><b>Minute-by-minute questions about 2024/25</b><span>For 2024/25 there are season totals and results, but not when each tackle or goal happened.</span></li>
+          <li><b>Seasons and competitions not listed below</b><span>For example the 2019/20 Premier League or the Champions League.</span></li>
+          <li><b>Things that aren't match stats</b><span>Injuries, transfers, wages, market values, opinions.</span></li>
+        </ul>
+        <p class="tip"><b>Vague questions</b> like "who's the best striker?" get a follow-up asking what you mean by best: goals, goals per game, or finishing quality.</p>
+      </div>
     </div>
-    <p class="note">Not included: anything after the 2024/25 season (the free data plan stops there), injuries,
-      transfers and wages. Ask and it will tell you.</p>
+
+    <h2 class="sub">Which seasons are in it</h2>
+    <div class="tablewrap cov-table"><table>
+      <thead><tr><th>Competition</th><th>Every event, with its minute</th><th>Season totals and results</th></tr></thead>
+      <tbody id="coverage">
+        <tr><td>Premier League, La Liga, Serie A</td><td>2015/16</td><td>2024/25</td></tr>
+        <tr><td>Ligue 1</td><td>2015/16</td><td>2024/25</td></tr>
+        <tr><td>Bundesliga</td><td>34 matches of 2015/16 and of 2023/24</td><td>2024/25</td></tr>
+        <tr><td>MLS</td><td>6 matches of 2023</td><td>2024</td></tr>
+        <tr><td>World Cup</td><td>2018, 2022</td><td></td></tr>
+        <tr><td>Euros</td><td>2020, 2024</td><td></td></tr>
+        <tr><td>Copa América</td><td>2024</td><td></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note" id="loading-note"></p>
+    <p class="note">Match events come from <a href="https://github.com/statsbomb/open-data">StatsBomb's free data</a>.
+      Expected goals come from my own model, about as accurate as StatsBomb's professional one.</p>
   </section>
 </main>
 <footer class="wrap foot">
