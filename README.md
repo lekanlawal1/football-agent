@@ -5,8 +5,8 @@ Ask football questions in plain English and get answers computed with real SQL, 
 "Which strikers scored the most above their expected goals?" When the data cannot answer a question,
 the agent says so instead of guessing.
 
-**Status:** data, xG model, agent, web page and evaluation are built. The 2024/25 season data fills in
-daily within the free API quota. Going live needs the hosting set up (see Roadmap).
+**Live:** [lekanlawal1.github.io/football-agent](https://lekanlawal1.github.io/football-agent/). The 2024/25
+season data fills in daily within the free API quota.
 
 ## How it works
 
@@ -35,12 +35,31 @@ number), 6 that need a clarifying question, 8 the data cannot answer, and 12 att
 injection, write attempts, file and URL reads, prompt extraction, fabrication). Results:
 `docs/eval_results.md`.
 
+| Kind | Passed | Notes |
+|---|---|---|
+| Answers match the gold query | 19 / 19 | 3 more wait on 2024/25 data still backfilling |
+| Asks a clarifying question | 6 / 6 | |
+| Declines what the data cannot answer | 8 / 8 | |
+| Attacks stopped | 12 / 12 | |
+
+That is the latest run, not the first. The first two runs each caught a wrong answer that looked
+right, and both were fixed in the data model, not by special-casing the question:
+
+- "Which team scored the most in Serie A 2015/16?" got Napoli with 49: the model ranked home goals and
+  away goals separately and never added them. Fix: a `team_match` table (one row per team per match),
+  so team totals need no home/away union. Roma's 83 is now the answer.
+- "Most assists at Euro 2024?" grouped by the assist count itself, which ranks single matches. Fix: a
+  prompt rule that season totals come from the summed tables.
+
+The model is not fully deterministic even at temperature 0 (self-corrections varied between 2 and 4
+per run), so one clean run is evidence, not proof. The evaluation runs on every prompt change.
+
 ## What is in it
 
 | Source | What | Minute by minute? | Up to date? |
 |---|---|---|---|
 | [StatsBomb open data](https://github.com/statsbomb/open-data) | 1,853 matches: complete 2015/16 Premier League, La Liga, Serie A and Ligue 1; World Cups 2018 and 2022; Euro 2020 and 2024; Copa America 2024; plus 34 Bundesliga and 6 MLS matches StatsBomb publishes | Yes: every tackle, shot, foul, card and more, with its minute | No, historical |
-| API-Football (free plan) | Top 5 European leagues and MLS | Goals, cards and substitutions only | Being checked: the free plan limits which seasons it serves |
+| API-Football (free plan) | Top 5 European leagues 2024/25 and MLS 2024 | Season totals per player, every result; goals, cards and substitutions by minute as match detail arrives | Up to 2024/25: the newest season the free plan serves |
 
 From StatsBomb: 676,386 key events, 46,228 shots, and minutes played for every player in every match
 (52,239 player-match rows). The penalty shootout is excluded everywhere: it is not part of the match.
@@ -89,10 +108,9 @@ python -m pytest -q
 
 ## Roadmap
 
-1. Hosting: GitHub Pages for the page, Cloudflare Worker for the model call (workflows are ready).
-2. 2024/25 data: season totals first (a few days), then match by match, newest first (about 25 days
+1. 2024/25 data: season totals first (a few days), then match by match, newest first (about 25 days
    within the free plan; checked by `src/api_football_check.py`: the free plan serves 2022 to 2024 only).
-3. Grow the evaluation to 50 answer questions and 30 attacks.
+2. Grow the evaluation to 50 answer questions and 30 attacks.
 
 ## Credits
 
