@@ -1,0 +1,24 @@
+name: Check API-Football plan
+
+# Run by hand (Actions tab > Check API-Football plan > Run workflow), or when this check changes.
+on:
+  workflow_dispatch:
+  push:
+    paths: ["src/api_football_check.py", ".github/workflows/check-api.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Ask the API what the free plan covers
+        env:
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+        run: python -m src.api_football_check
