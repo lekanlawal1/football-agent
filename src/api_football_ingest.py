@@ -131,6 +131,25 @@ def main(budget: int = 90) -> int:
     players_done = teams_done == len(teams)
     report.append(f"Season totals: {pages_got} page(s) this run; {teams_done} of {len(teams)} clubs complete.")
 
+    # 2b. transfer history for players the API may have filed under a club they joined after the
+    #     season (see api_football_transform.echo_suspects): one request per player, fetched once
+    from src.api_football_transform import echo_suspects, player_season
+    ps = player_season()
+    suspects = sorted(set(echo_suspects(ps).player_id)) if not ps.empty else []
+    fetched = 0
+    for pid in suspects:
+        p = OUT / "transfers" / f"{pid}.json.gz"
+        if p.exists():
+            continue
+        try:
+            save_gz(p, api.get("transfers", player=int(pid))["response"])
+            fetched += 1
+        except RuntimeError as err:
+            if "budget" not in str(err):
+                report.append(f"Stopped fetching transfer history: {err}")
+            break
+    report.append(f"Transfer history: {fetched} player(s) this run, {len(suspects)} suspected duplicate season(s) in total.")
+
     # 3. per-match detail, newest finished matches first, one request each
     have = {int(f.name.split(".")[0]) for f in (OUT / "fixtures").glob("*.json.gz")}
     finished = [f for lid in lists for f in lists[lid] if f["fixture"]["status"]["short"] in FINISHED]
