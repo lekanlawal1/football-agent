@@ -1,0 +1,7 @@
+# Raw downloads and the per-match cache are rebuilt by src.statsbomb_ingest
+data/raw/
+# Built by src.build from the parquet tables
+data/*.duckdb
+__pycache__/
+.pytest_cache/
+.env
