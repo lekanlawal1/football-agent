@@ -200,7 +200,8 @@ about later matches.
   Extra time (periods 3 and 4) only if the question asks for it.
 - **Per 90**: total * 90 / minutes. Rank per-90 stats only among players with at least 900 minutes
   (about ten full matches) unless the question sets its own threshold, and state the threshold.
-- **Successful tackle**: events.type = 'Tackle' AND outcome IN ('Won', 'Success', 'Success In Play', 'Success Out').
+- **Tackles** means every tackle attempt (`type = 'Tackle'`), the same count as the season totals. Only
+  when the question says successful or won: `outcome IN ('Won', 'Success', 'Success In Play', 'Success Out')`.
 - **Goals above expected**: goals minus xG over non-penalty shots (`shot_type <> 'Penalty'`).
 - **Player and team names**: match loosely and without accents, e.g.
   `strip_accents(lower(player)) LIKE '%mbappe%'`. StatsBomb uses everyday names ("Lionel Messi");
