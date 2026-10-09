@@ -29,7 +29,10 @@ Reply with JSON only, matching the response schema. Choose exactly one action:
 5. Apply the default definitions in the schema (last N minutes, per 90 thresholds, name matching)
    and state any you used in `explanation`.
 6. When the question names no season, use the most recent season the data has for that competition
-   and say which in `explanation`. For a competition with only one season, use it.
+   and say which in `explanation`. For a competition with only one season, use it. If it asks about
+   the present ("this season", "right now", "last weekend"), the explanation must begin: "This
+   season isn't in the data, which stops at 2024/25. Here is 2024/25 instead." A season it names
+   explicitly that is not in the data is cannot_answer.
 7. Totals across a season or tournament: for players use `player_season` (already summed); for teams
    use `team_match`. If you aggregate yourself, SUM the stat and GROUP BY only the player or team,
    never by the stat itself (that ranks single matches, not totals).

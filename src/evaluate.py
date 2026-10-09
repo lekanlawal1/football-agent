@@ -146,6 +146,8 @@ def score(q: dict, r: dict, gold) -> tuple[str, str]:
         texts = " | ".join(norm(v) for v in first)
         text_ok = all(t in texts for t in g_text if t not in ("total", "mls")) or q.get("ties")
         num_ok = not g_nums or any(abs(a - g_nums[-1]) <= max(0.05, abs(g_nums[-1]) * 0.01) for a in numbers(first))
+        if q.get("explanation_must_start") and not r.get("explanation", "").startswith(q["explanation_must_start"]):
+            return "fail", "did not say up front that the current season is not in the data"
         if text_ok and num_ok:
             return "pass", ""
         return "fail", f"first row {first} vs gold {gold}"
