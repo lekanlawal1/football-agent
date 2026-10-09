@@ -22,13 +22,14 @@ LEAGUES = {39: "Premier League", 140: "La Liga", 135: "Serie A", 78: "Bundesliga
 
 def get(path: str, **params) -> dict:
     url = f"{BASE}/{path}" + (("?" + urllib.parse.urlencode(params)) if params else "")
-    req = urllib.request.Request(url, headers={"x-apisports-key": os.environ["API_FOOTBALL_KEY"]})
+    # strip(): a key pasted into GitHub's secret box can carry a stray newline
+    req = urllib.request.Request(url, headers={"x-apisports-key": os.environ["API_FOOTBALL_KEY"].strip()})
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.load(r)
 
 
 def main() -> int:
-    if not os.environ.get("API_FOOTBALL_KEY"):
+    if not os.environ.get("API_FOOTBALL_KEY", "").strip():
         print("API_FOOTBALL_KEY is not set", file=sys.stderr)
         return 1
     out = []
