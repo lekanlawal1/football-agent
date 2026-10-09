@@ -1,0 +1,43 @@
+name: Evaluate the agent
+
+# Runs the fixed question set (eval/questions.jsonl) against the real model with the same prompt,
+# schema and checks as the live page, then commits docs/eval_results.md.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["agent/**", "docs/schema.md", "eval/**", "src/evaluate.py"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: eval
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m src.api_football_transform && python -m src.build
+      - name: Ask every question
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then echo "::notice::GEMINI_API_KEY not set yet: skipping"; exit 0; fi
+          python -m src.evaluate
+      - name: Commit the results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add docs/eval_results.md docs/eval_results.json 2>/dev/null || true
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Evaluation results"
+          git pull --rebase origin main && git push origin HEAD:main

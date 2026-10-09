@@ -1,0 +1,59 @@
+name: Build and deploy the site
+
+# On every push, and after each daily backfill so new 2024/25 data reaches the page by itself.
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ["API-Football backfill"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main      # after a backfill, build what it just committed
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Tables from the saved API-Football responses
+        run: python -m src.api_football_transform
+      - name: Build the database and run the data tests (a failure stops the deploy)
+        run: python -m src.build
+      - name: Schema guide must match the database the agent is told about
+        run: |
+          python -m src.schema_doc
+          git diff --exit-code -- docs/schema.md || { echo "docs/schema.md is out of date: run python -m src.schema_doc and commit it"; exit 1; }
+      - name: Export the data files and example answers
+        run: python -m src.export_site
+      - name: The page uses the Worker's own SQL check, never a copy that could drift
+        run: cp worker/src/shape.js site/shape.js
+      - name: Point the page at the AI service
+        run: echo "window.AGENT_URL = \"${{ vars.AGENT_URL }}\";" > site/config.js
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

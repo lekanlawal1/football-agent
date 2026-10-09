@@ -1,0 +1,41 @@
+name: Deploy the AI Worker
+
+# The Worker bundles agent/system_prompt.md and docs/schema.md, so it redeploys whenever the
+# instructions change: what runs live is always what was tested.
+on:
+  push:
+    branches: [main]
+    paths: ["worker/**", "agent/**", "docs/schema.md", ".github/workflows/deploy-worker.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Unit test the SQL shape check
+        run: node --test test/*.test.mjs
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::notice::Cloudflare secrets not set yet: skipping the deploy"; echo "SKIP=1" >> "$GITHUB_ENV"; exit 0; fi
+          npx --yes wrangler@4 deploy
+      - name: Store the Gemini key as an encrypted Worker secret
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        if: env.SKIP != '1'
+        run: printf '%s' "$(printf '%s' "$GEMINI_API_KEY" | tr -d '[:space:]')" | npx --yes wrangler@4 secret put GEMINI_API_KEY

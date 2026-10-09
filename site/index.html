@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Football Stats Agent | Lekan Lawal</title>
+<meta name="description" content="Ask football statistics questions in plain English. Answered with real SQL you can see, run in your browser. StatsBomb event data and 2024/25 league seasons.">
+<link rel="icon" href="https://lekanlawal1.github.io/portfolio-site/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+</head>
+<body>
+<nav class="topbar"><div class="in">
+  <a class="home" href="https://lekanlawal1.github.io/portfolio-site/#agent"><span class="dot">LL</span>Lekan Lawal</a>
+  <a class="pill" href="https://github.com/lekanlawal1/football-agent">Code and method</a>
+</div></nav>
+<div class="band"></div>
+
+<main class="wrap">
+  <header class="hero">
+    <span class="eyebrow">AI agent · SQL in your browser · expected goals model</span>
+    <h1>Ask the <span class="hl">football</span> database</h1>
+    <p class="lead">Plain-English questions, answered with a real SQL query you can read. It asks when a question
+      is ambiguous and says so when the data can't answer, instead of guessing.</p>
+  </header>
+
+  <form class="ask" id="ask">
+    <input id="q" type="text" maxlength="300" autocomplete="off"
+      placeholder="e.g. Who made the most tackles after the 75th minute in La Liga 2015/16?" aria-label="Your question">
+    <button type="submit" class="btn primary" id="go">Ask</button>
+  </form>
+  <div class="examples" id="examples" aria-label="Example questions"></div>
+  <p class="status" id="status" role="status"></p>
+
+  <section id="answer" class="answer" hidden></section>
+
+  <section class="coverage">
+    <h2>What it knows</h2>
+    <div class="cov">
+      <div><b>Minute by minute</b><span>Premier League, La Liga, Serie A, Ligue 1, complete 2015/16 seasons; World Cups 2018 and 2022; Euro 2020 and 2024; Copa America 2024. Every tackle, shot, foul and card, with its minute.</span></div>
+      <div><b>Season totals</b><span>Top 5 European leagues 2024/25 and MLS 2024: tackles, goals, assists, cards and more for every player, and every result.</span></div>
+      <div><b>Expected goals</b><span>Its own xG model, about as accurate as StatsBomb's professional one (ROC AUC 0.804 vs 0.812), on 46,000 shots.</span></div>
+    </div>
+    <p class="note">Not included: anything after the 2024/25 season (the free data plan stops there), injuries,
+      transfers and wages. Ask and it will tell you.</p>
+  </section>
+</main>
+<footer class="wrap foot">
+  Event data: <a href="https://github.com/statsbomb/open-data">StatsBomb open data</a>. 2024/25 season data: API-Football.
+  Built by <a href="https://lekanlawal1.github.io/portfolio-site/">Lekan Lawal</a>.
+</footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>

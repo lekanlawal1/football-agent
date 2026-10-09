@@ -8,3 +8,7 @@ __pycache__/
 
 # Rebuilt from the saved API responses by src.api_football_transform
 data/api_football/*.parquet
+
+# Generated at deploy: data files and the shared SQL check (copied from worker/src/shape.js)
+site/data/
+site/shape.js
