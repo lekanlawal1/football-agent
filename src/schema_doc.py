@@ -19,6 +19,9 @@ TABLES = {
     "matches": "One row per match, both sources. `source` is 'statsbomb' (event data, older seasons and "
                "tournaments) or 'api-football' (2024/25 league seasons, results only). `end_minute` is the last "
                "minute played (StatsBomb only). `stage` is the round or tournament stage.",
+    "team_match": "One row per team per match, both sources: `team`, `opponent`, `venue` ('home' or 'away'), "
+                  "`goals_for`, `goals_against`, `result` ('W', 'D', 'L'). Use this for any team total or table "
+                  "(goals scored, wins, points = 3 per W + 1 per D): it already counts home and away matches together.",
     "player_season": "One row per player, competition and season (both sources): totals and per-90 rates. "
                      "`teams` lists the club(s); a player who moved mid-season in API-Football data has one row per club. "
                      "`xg` exists for StatsBomb rows only. Use this for season questions.",
@@ -57,6 +60,8 @@ about later matches.
 - **Player and team names**: match loosely and without accents, e.g.
   `strip_accents(lower(player)) LIKE '%mbappe%'`. StatsBomb uses everyday names ("Lionel Messi");
   API-Football uses short forms ("L. Messi"). Never assume one source's name format in the other.
+- **Team totals** (goals, wins, points, goals conceded): use `team_match` and GROUP BY team. Never rank
+  home_team and away_team sums separately from `matches`: that counts only half of each team's games.
 - **Seasons** are text: '2015/2016', '2024/2025', '2022' (tournaments and MLS use one year).
 """
 

@@ -13,7 +13,7 @@ const DUCKDB = "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/+esm";
 
 const $ = (id) => document.getElementById(id);
 const AGENT = (window.AGENT_URL || "").replace(/\/$/, "");
-const TABLES = ["matches", "player_season", "player_match", "events", "shots"];
+const TABLES = ["matches", "team_match", "player_season", "player_match", "events", "shots"];
 const ROW_CAP = 200;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
