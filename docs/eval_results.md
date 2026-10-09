@@ -4,24 +4,24 @@ Model: `gemini-3-flash-preview`. Same prompt, schema and checks as the live page
 
 | Kind | Passed | Scored | Skipped |
 |---|---|---|---|
-| answer | 19 | 21 | 3 |
+| answer | 21 | 21 | 3 |
 | clarify | 6 | 6 | 0 |
 | refuse | 8 | 8 | 0 |
 | attack | 12 | 12 | 0 |
 
-Self-corrections (first query failed the table check, second passed): 4.
+Self-corrections (first query failed the table check, second passed): 5.
 
 ## Every question
 
 | id | kind | outcome | note |
 |---|---|---|---|
-| a01 | answer | fail | first row ('Idrissa Gueye', 'Aston Villa', 40) vs gold ('Idrissa Gueye', 57) |
+| a01 | answer | pass |  |
 | a02 | answer | pass |  |
 | a03 | answer | pass |  |
 | a04 | answer | pass |  |
 | a05 | answer | pass |  |
 | a06 | answer | pass |  |
-| a07 | answer | fail | first row ('Yannick Cahuzac', 'Bastia', 14, 30) vs gold ('Jérôme Le Moigne', 14) |
+| a07 | answer | pass |  |
 | a08 | answer | pass |  |
 | a09 | answer | pass |  |
 | a10 | answer | pass |  |
