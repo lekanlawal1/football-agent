@@ -44,7 +44,7 @@ jobs:
       - name: The page uses the Worker's own SQL check, never a copy that could drift
         run: cp worker/src/shape.js site/shape.js
       - name: Point the page at the AI service
-        run: echo "window.AGENT_URL = \"${{ vars.AGENT_URL }}\";" > site/config.js
+        run: echo "window.AGENT_URL = \"${{ vars.AGENT_URL || 'https://football-agent.lekanlawal.workers.dev' }}\";" > site/config.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
