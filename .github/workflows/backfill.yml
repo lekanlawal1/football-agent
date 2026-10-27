@@ -9,7 +9,7 @@ on:
     inputs:
       budget:
         description: "Most requests this run may spend (free plan: 100 a day)"
-        default: "90"
+        default: "70"
 
 permissions:
   contents: write
@@ -31,7 +31,7 @@ jobs:
       - name: Download finished matches
         env:
           API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
-        run: python -m src.api_football_ingest "${{ github.event.inputs.budget || '90' }}"
+        run: python -m src.api_football_ingest "${{ github.event.inputs.budget || '70' }}"
       - name: Commit new matches
         run: |
           git config user.name "github-actions[bot]"

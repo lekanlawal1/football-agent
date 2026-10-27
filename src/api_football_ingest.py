@@ -12,8 +12,8 @@ costs one request: about 2,280 for the six seasons, roughly 25 daily runs. To be
    across all leagues, so the end of the season fills in first.
 - Each page and match is saved once as data/api_football/fixtures/<id>.json.gz and committed by the workflow,
   so progress survives between runs and nothing is downloaded twice.
-- Each run spends at most BUDGET requests (default 90 of 100) and stops early when the API reports
-  the daily limit. When everything is downloaded it spends one request (the status check) and stops.
+- Each run spends at most BUDGET requests (default 70 of 100; the other 30 are left for Daily Derby,
+  which uses the same key) and stops early when the API reports the daily limit. When everything is downloaded it spends one request (the status check) and stops.
 
 The key comes from API_FOOTBALL_KEY and is never printed.
 """
@@ -74,7 +74,7 @@ def load_gz(path: Path):
         return json.load(f)
 
 
-def main(budget: int = 90) -> int:
+def main(budget: int = 70) -> int:
     api = Budget(budget)
     report = []
     status = api.get("status")["response"]["requests"]
@@ -182,4 +182,4 @@ def main(budget: int = 90) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(int(sys.argv[1]) if len(sys.argv) > 1 else 90))
+    sys.exit(main(int(sys.argv[1]) if len(sys.argv) > 1 else 70))
