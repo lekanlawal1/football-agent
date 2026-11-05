@@ -1,4 +1,4 @@
-/* Football Stats Agent page.
+/* The Gaffer (football stats agent) page.
 
    1. Example questions show answers computed at build time (data/examples.json): instant, and
       written and checked by hand.
@@ -32,13 +32,35 @@ function table(columns, rows) {
     <tbody>${rows.map((r) => `<tr>${r.map((v, i) => `<td class="${numeric[i] ? "n" : ""}">${esc(fmt(v))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 
+// The query, lightly coloured: keywords and quoted values (escaped first, so nothing is injected)
+const sqlHL = (q) => esc(q).replace(/\b(SELECT|FROM|JOIN|LEFT|USING|ON|WHERE|AND|OR|NOT|IN|GROUP BY|HAVING|ORDER BY|DESC|ASC|LIMIT|AS|WITH|CASE|WHEN|THEN|ELSE|END|DISTINCT|FILTER|OVER|PARTITION BY)\b/g, '<span class="kw">$1</span>')
+  .replace(/'[^']*'/g, (m) => `<span class="str">${m}</span>`);
+
+// The top five chalked on the board as a little team sheet: the first text column names them, the
+// last number column is their figure. The spots are a lineup graphic, not where anyone played.
+const SPOTS = [[80, 34], [62, 62], [84, 70], [58, 22], [40, 46]];
+function teamSheet(columns, rows) {
+  if (rows.length < 3) return "";
+  const nameIdx = columns.findIndex((_, i) => rows.every((r) => typeof r[i] === "string" || r[i] === null));
+  let valIdx = -1;
+  columns.forEach((_, i) => { if (rows.every((r) => r[i] === null || typeof r[i] === "number")) valIdx = i; });
+  if (nameIdx < 0 || valIdx < 0) return "";
+  const subIdx = columns.findIndex((_, i) => i !== nameIdx && rows.every((r) => typeof r[i] === "string" || r[i] === null));
+  const label = columns[valIdx].replaceAll("_", " ");
+  return `<div><p class="chalk-note">&rarr; The top ${Math.min(5, rows.length)}, by ${esc(label)}</p><div class="pitch" aria-hidden="true">
+    <svg viewBox="0 0 400 300" fill="none" stroke="#F1EFE6" stroke-width="2" stroke-dasharray="6 5" opacity=".5"><rect x="8" y="8" width="384" height="284" rx="4"/><line x1="200" y1="8" x2="200" y2="292"/><circle cx="200" cy="150" r="40"/><rect x="8" y="80" width="70" height="140"/><rect x="322" y="80" width="70" height="140"/></svg>
+    ${rows.slice(0, 5).map((r, i) => `<div class="pl" style="left:${SPOTS[i][0]}%;top:${SPOTS[i][1]}%"><i>${i + 1}</i>${esc(String(r[nameIdx] ?? "").split(" ").slice(-1)[0])} <b>${esc(fmt(r[valIdx]))}</b>${subIdx >= 0 ? `<small>${esc(r[subIdx] ?? "")}</small>` : ""}</div>`).join("")}
+  </div></div>`;
+}
+
 function show({ question, tag, explanation, columns, rows, sql, extra = "", meta = "" }) {
   const el = $("answer");
+  const sheet = columns && rows.length ? teamSheet(columns, rows) : "";
   el.innerHTML = `<div>${tag}</div><p class="q">${esc(question)}</p>
     ${explanation ? `<p class="expl">${esc(explanation)}</p>` : ""}
     ${extra}
-    ${columns ? (rows.length ? table(columns, rows) : `<p class="help">${emptyHelp(sql)}</p>`) : ""}
-    ${sql ? `<details class="sql"><summary>Show the query behind this answer</summary><pre>${esc(sql)}</pre></details>` : ""}
+    ${columns ? (rows.length ? `<div class="result${sheet ? "" : " solo"}">${sheet}<div>${table(columns, rows)}</div></div>` : `<p class="help">${emptyHelp(sql)}</p>`) : ""}
+    ${sql ? `<details class="sql"><summary>The play (the query it ran)</summary><pre>${sqlHL(sql)}</pre></details>` : ""}
     ${meta ? `<p class="meta">${meta}</p>` : ""}`;
   el.hidden = false;
   el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });

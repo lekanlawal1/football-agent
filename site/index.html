@@ -3,37 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Football Stats Agent | Lekan Lawal</title>
+<title>The Gaffer: football questions answered with real data | Lekan Lawal</title>
 <meta name="description" content="Ask football statistics questions in plain English. Answered with real SQL you can see, run in your browser. StatsBomb event data and 2024/25 league seasons.">
 <link rel="icon" href="https://lekanlawal1.github.io/portfolio-site/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Londrina+Solid:wght@300;400;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=20261105">
 <script src="config.js"></script>
 <script src="https://lekanlawal1.github.io/portfolio-site/portfolio-bar.js" data-project="fifa" defer></script>
 </head>
 <body>
-<nav class="topbar"><div class="in">
-  <a class="home" href="https://lekanlawal1.github.io/portfolio-site/#football"><span class="dot">LL</span>Lekan Lawal</a>
-  <a class="pill" href="https://github.com/lekanlawal1/football-agent">Code and method</a>
-</div></nav>
-<div class="band"></div>
+<div class="board">
+<nav class="top">
+  <a class="name" href="./">The Gaffer</a>
+  <span class="links"><a href="https://github.com/lekanlawal1/football-agent">Code and method</a>
+    <a href="https://lekanlawal1.github.io/portfolio-site/#football">Lekan Lawal</a></span>
+</nav>
 
 <main class="wrap">
   <header class="hero">
-    <span class="eyebrow">Real match data · answers you can check</span>
-    <h1>Ask a <span class="hl">football</span> question</h1>
-    <p class="lead">Type a question the way you'd ask a friend. It looks the answer up in real match data and
-      shows you a table, plus the exact query it used, so you can see how it got there.</p>
+    <h1>Ask the <span class="hl">gaffer</span> anything.</h1>
+    <p class="lead">Plain English in. A real query against real match data out, with the working shown on the board.
+      When the data can't answer, it says so instead of guessing.</p>
   </header>
 
   <form class="ask" id="ask">
     <input id="q" type="text" maxlength="300" autocomplete="off"
       placeholder="e.g. Who made the most tackles after the 75th minute in La Liga 2015/16?" aria-label="Your question">
-    <button type="submit" class="btn primary" id="go">Ask</button>
+    <button type="submit" class="btn" id="go">Ask</button>
   </form>
-  <p class="hint">New here? Tap a question below for an instant answer, or see <a href="#guide">what you can ask</a>.</p>
+  <p class="hint">New here? Tap a question for an instant answer, or see <a href="#guide">what you can ask</a>.</p>
   <div class="examples" id="examples" aria-label="Example questions"></div>
   <p class="status" id="status" role="status"></p>
 
@@ -41,7 +41,7 @@
 
   <section class="steps" aria-label="How it works">
     <div><i>1</i><b>You ask</b><span>In plain English. Name the league and season for the best answer.</span></div>
-    <div><i>2</i><b>AI writes a query</b><span>Google's Gemini turns your question into a database query. It's checked so it can only read data.</span></div>
+    <div><i>2</i><b>The AI writes the play</b><span>Google's Gemini turns your question into a database query. It's checked so it can only read data.</span></div>
     <div><i>3</i><b>Your browser runs it</b><span>The answer is worked out on your device. Tap "Show the query" under any answer to see how.</span></div>
   </section>
 
@@ -88,11 +88,12 @@
       Expected goals come from my own model, about as accurate as StatsBomb's professional one.</p>
   </section>
 </main>
+</div>
 <footer class="wrap foot">
   Event data: <a href="https://github.com/statsbomb/open-data">StatsBomb open data</a>. 2024/25 season data: API-Football.
   Built by <a href="https://lekanlawal1.github.io/portfolio-site/">Lekan Lawal</a>.
 </footer>
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=20261105"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "50d455a6ac424591b8acaa97dc3975a9"}'></script>
 </body>
 </html>
