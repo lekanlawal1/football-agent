@@ -1,6 +1,6 @@
 # The Gaffer
 
-A football stats agent (formerly "Football Stats Agent").
+A football stats agent.
 
 Ask football questions in plain English and get answers computed with real SQL, with the query shown.
 "Who made the most tackles from the 70th minute on in the 2015/16 Premier League?" works. So does
