@@ -1,126 +1,44 @@
 # The Gaffer
 
-A football stats agent.
+Ask a football question in plain English and get an answer worked out with real SQL, with the query shown. When the data can't answer it, it says so instead of guessing.
 
-Ask football questions in plain English and get answers computed with real SQL, with the query shown.
-"Who made the most tackles from the 70th minute on in the 2015/16 Premier League?" works. So does
-"Which strikers scored the most above their expected goals?" When the data cannot answer a question,
-the agent says so instead of guessing.
+[Ask it something](https://lekanlawal1.github.io/football-agent/)
 
-**Live:** [lekanlawal1.github.io/football-agent](https://lekanlawal1.github.io/football-agent/). The 2024/25
-season data fills in daily within the free API quota.
+![The Gaffer's question page](docs/screenshot.jpg)
+
+## Why I built it
+
+Chatbots answer football questions confidently and get the numbers wrong. I wanted one where every answer comes from data you can check, and where "I can't answer that" is a normal response. It works for questions like "Who made the most tackles from the 70th minute on in the 2015/16 Premier League?"
 
 ## How it works
 
-```
-question -> Cloudflare Worker -> Gemini decides: run_sql | clarify | cannot_answer
-         -> the page checks the SQL (one SELECT, no file or URL functions) and EXPLAINs it against the
-            real tables; a failure goes back to the model once, a second failure is reported
-         -> DuckDB runs it in your browser on the published parquet files (only the parts it needs)
-```
+Your question goes to Gemini through a small Cloudflare Worker that keeps the API key private. Gemini can do one of three things: write a SQL query, ask you to clarify, or say the data can't answer it. The page checks the SQL is a single read-only query that works against the real tables, then runs it in your browser with DuckDB. There's no database server to keep running or attack.
 
-- **The SQL runs in the visitor's browser** (DuckDB-WASM). There is no database server to keep awake
-  or attack, so the page never sleeps.
-- **The Worker** keeps the Gemini key secret, rate-limits each visitor, caches repeated questions, and
-  only ever returns a single SELECT. The page enforces the same check again before running anything.
-- **One prompt, one schema, everywhere.** `agent/system_prompt.md` and `docs/schema.md` (generated
-  from the live database) are bundled into the Worker and used by the evaluation, so what was tested
-  is what runs. The deploy fails if the schema guide is out of date.
-- **Instant examples**: the example questions show answers computed at build time from SQL written and
-  checked by hand, before the in-browser database has even loaded.
+The data is StatsBomb's free event data: 1,853 matches, including four full 2015/16 European leagues and recent World Cups and Euros, with every shot, tackle and card down to the minute. Newer 2024/25 season data is filling in daily from API-Football's free plan.
 
-## Evaluation
+I also built my own expected-goals (xG) model, which estimates how likely each shot was to go in. It gets close to StatsBomb's professional model, on the same shots.
 
-`python -m src.evaluate` (needs `GEMINI_API_KEY`) runs `eval/questions.jsonl` through the same pipeline:
-25 questions with hand-written gold SQL (the agent's top row must name the same player and the same
-number), 6 that need a clarifying question, 8 the data cannot answer, and 12 attacks (prompt
-injection, write attempts, file and URL reads, prompt extraction, fabrication). Results:
-`docs/eval_results.md`.
+## What I found
 
-| Kind | Passed | Notes |
-|---|---|---|
-| Answers match the gold query | 22 / 22 | 3 more wait on 2024/25 data still backfilling |
-| Asks a clarifying question | 6 / 6 | |
-| Declines what the data cannot answer | 8 / 8 | |
-| Attacks stopped | 12 / 12 | |
+I test it on 51 questions: 25 with answers I worked out by hand, 6 that need a clarifying question, 8 the data can't answer, and 12 attacks like prompt injection and attempts to change data. On the latest run it got all 22 answerable ones right (3 are waiting on newer data), and passed every other test.
 
-That is the latest run, not the first. The first two runs each caught a wrong answer that looked
-right, and both were fixed in the data model, not by special-casing the question:
+That took a few rounds. The first runs caught wrong answers that looked right. Asked which team scored most in Serie A, it said Napoli with 49, because it counted home and away goals separately and never added them. I fixed that by changing how the data is laid out rather than special-casing the question. Roma's 83 is now the answer.
 
-- "Which team scored the most in Serie A 2015/16?" got Napoli with 49: the model ranked home goals and
-  away goals separately and never added them. Fix: a `team_match` table (one row per team per match),
-  so team totals need no home/away union. Roma's 83 is now the answer.
-- "Most assists at Euro 2024?" grouped by the assist count itself, which ranks single matches. Fix: a
-  prompt rule that season totals come from the summed tables.
-
-A visitor's question showed a third kind of gap: "which defenders kept first-half clean sheets in home
-games?" was declined because positions and half-time scores looked missing. Both were in the raw data,
-just not where the model could use them. Positions and first-half scores are now columns, with a
-clean-sheet definition, and that question is in the evaluation.
-
-The model is not fully deterministic even at temperature 0 (self-corrections varied between 2 and 4
-per run), so one clean run is evidence, not proof. The evaluation runs on every prompt change.
-
-## What is in it
-
-| Source | What | Minute by minute? | Up to date? |
-|---|---|---|---|
-| [StatsBomb open data](https://github.com/statsbomb/open-data) | 1,853 matches: complete 2015/16 Premier League, La Liga, Serie A and Ligue 1; World Cups 2018 and 2022; Euro 2020 and 2024; Copa America 2024; plus 34 Bundesliga and 6 MLS matches StatsBomb publishes | Yes: every tackle, shot, foul, card and more, with its minute | No, historical |
-| API-Football (free plan) | Top 5 European leagues 2024/25 and MLS 2024 | Season totals per player, every result; goals, cards and substitutions by minute as match detail arrives | Up to 2024/25: the newest season the free plan serves |
-
-From StatsBomb: 676,386 key events, 46,228 shots, and minutes played for every player in every match
-(52,239 player-match rows). The penalty shootout is excluded everywhere: it is not part of the match.
-
-## Data you can trust
-
-`python -m src.build` builds the database and runs data tests; any failure stops the build.
-
-- **Every goal adds up.** Shots that scored plus own goals equal the official final score in all
-  1,853 matches.
-- The test caught a real problem: StatsBomb's match list says "Olympique de Marseille" where its
-  event files say "Marseille", so a 1-1 looked like 1-0. Names are now matched across files, but only
-  when the pairing is unambiguous; anything else fails the build instead of being guessed.
-- Checked against the record books: Suarez 40 La Liga goals in 2015/16, Higuain 36 (the Serie A
-  record), Kane 25 and Vardy 24 in the Premier League.
-- Assists use StatsBomb's definition, which is slightly stricter than the official one (Suarez shows
-  15 against the official 16).
-
-## Expected goals (xG) model
-
-The chance that a shot becomes a goal, from where and how it was taken. Rules were fixed before any
-result: penalties get the observed conversion rate (74.5%) rather than a model; every shot is scored
-by a model that never saw its match (5-fold cross-validation grouped by match).
-
-| Model, 45,719 non-penalty shots | Log loss (lower is better) | Brier | ROC AUC (higher is better) |
-|---|---|---|---|
-| Baseline: distance and angle only | 0.278 | 0.078 | 0.746 |
-| **This project: gradient boosting, all features** | **0.253** | **0.071** | **0.804** |
-| StatsBomb's own professional xG, same shots | 0.249 | 0.070 | 0.812 |
-
-It closes about 88% of the gap between the textbook baseline and StatsBomb's model, and it is well
-calibrated: shots it rates at 0.39 went in 39.6% of the time. Trained on the 2015/16 leagues and
-tested on international tournaments it still scores 0.787 AUC (StatsBomb: 0.798). Features: distance,
-angle, defenders between the ball and the goal, the keeper's position, body part, assist type (through
-ball, cutback, cross), first-time, one-on-one, under pressure. Full results: `docs/xg_results.json`.
+The data has its own checks too. Goals from shots plus own goals must equal the final score in every one of the 1,853 matches. That caught a real mismatch, where "Olympique de Marseille" and "Marseille" were treated as two different teams.
 
 ## Run it
 
 ```bash
 pip install -r requirements.txt
-python -m src.statsbomb_ingest   # about 10 minutes the first time; cached after that
-python -m src.xg                 # trains and validates the xG model
-python -m src.build              # builds data/football.duckdb and runs the data tests
+python -m src.statsbomb_ingest   # about 10 minutes the first time
+python -m src.xg                 # train and test the xG model
+python -m src.build              # build the database and run the data checks
 python -m pytest -q
+python -m src.evaluate           # needs GEMINI_API_KEY
 ```
 
-## Roadmap
+## More
 
-1. 2024/25 data: season totals first (a few days), then match by match, newest first (about 25 days
-   within the free plan; checked by `src/api_football_check.py`: the free plan serves 2022 to 2024 only).
-2. Grow the evaluation to 50 answer questions and 30 attacks.
+[docs/details.md](docs/details.md) has the full write-up, including the xG results table and every data source. The latest evaluation is in [docs/eval_results.md](docs/eval_results.md).
 
-## Credits
-
-Event data: **StatsBomb**, released free for public use with attribution
-([open-data](https://github.com/statsbomb/open-data), see their licence). Built by
-[Lekan Lawal](https://lekanlawal1.github.io/portfolio-site/).
+Event data: [StatsBomb open data](https://github.com/statsbomb/open-data), free for public use with attribution.
