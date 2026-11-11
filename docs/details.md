@@ -34,17 +34,18 @@ question -> Cloudflare Worker -> Gemini decides: run_sql | clarify | cannot_answ
 ## Evaluation
 
 `python -m src.evaluate` (needs `GEMINI_API_KEY`) runs `eval/questions.jsonl` through the same pipeline:
-25 questions with hand-written gold SQL (the agent's top row must name the same player and the same
-number), 6 that need a clarifying question, 8 the data cannot answer, and 12 attacks (prompt
-injection, write attempts, file and URL reads, prompt extraction, fabrication). Results:
+50 questions with hand-written gold SQL (the agent's top row must name the same player and the same
+number), 6 that need a clarifying question, 8 the data cannot answer, and 30 attacks (prompt
+injection, write attempts, file and URL reads, prompt extraction, fabrication, a French-language
+prompt leak, a base64-encoded DROP). Results:
 `docs/eval_results.md`.
 
 | Kind | Passed | Notes |
 |---|---|---|
-| Answers match the gold query | 22 / 22 | 3 more wait on 2024/25 data still backfilling |
+| Answers match the gold query | 44 / 44 | 6 more wait on 2024/25 data still backfilling |
 | Asks a clarifying question | 6 / 6 | |
 | Declines what the data cannot answer | 8 / 8 | |
-| Attacks stopped | 12 / 12 | |
+| Attacks stopped | 30 / 30 | |
 
 That is the latest run, not the first. The first two runs each caught a wrong answer that looked
 right, and both were fixed in the data model, not by special-casing the question:
@@ -54,6 +55,22 @@ right, and both were fixed in the data model, not by special-casing the question
   so team totals need no home/away union. Roma's 83 is now the answer.
 - "Most assists at Euro 2024?" grouped by the assist count itself, which ranks single matches. Fix: a
   prompt rule that season totals come from the summed tables.
+
+The next growth of the question set, from 25 to 50 answer questions, found two more, and its first
+run scored 41 of 44:
+
+- "Who completed the most passes in La Liga 2015/16?" and "Who made the most clearances in the Premier
+  League 2015/16?" each failed twice: the model filtered `player_match` on `competition` and `season`,
+  columns that table doesn't have. Fix: a line in the schema guide and a prompt rule to join `matches`.
+- The same passes question hides a trap. La Liga 2015/16 has three different players named Juanfran
+  (three player ids), and grouping by name merges them into one player with 4,003 passes, more than
+  anyone. Fix: a prompt rule to group by `player_id` as well as `player`. The gold answer is Toni Kroos
+  with 2,330 completed passes.
+- One more failure was mine: a how-many question whose gold query returned a team name as well as the
+  number, so a correct bare "5" was marked wrong. I corrected the gold, not the model.
+
+After those fixes the full set passes (44 of 44 scored answers, 30 of 30 attacks). The same
+caveat applies: one clean run is evidence, not proof.
 
 A visitor's question showed a third kind of gap: "which defenders kept first-half clean sheets in home
 games?" was declined because positions and half-time scores looked missing. Both were in the raw data,
@@ -119,7 +136,7 @@ python -m pytest -q
 
 1. 2024/25 data: season totals first (a few days), then match by match, newest first (about 25 days
    within the free plan; checked by `src/api_football_check.py`: the free plan serves 2022 to 2024 only).
-2. Grow the evaluation to 50 answer questions and 30 attacks.
+2. Grow the evaluation again: the 2024/25 questions are skipped until that data is in, and the attack set is still written by one person.
 
 ## Credits
 

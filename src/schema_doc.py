@@ -30,7 +30,8 @@ TABLES = {
                      "`teams` lists the club(s); a player who moved mid-season in API-Football data has one row per club. "
                      "`xg` exists for StatsBomb rows only. `position_group` is 'Goalkeeper', 'Defender', 'Midfielder' or "
                      "'Forward' (the one the player played most). Use this for season questions.",
-    "player_match": "StatsBomb only: one row per player per match. `minutes` played, `started`, and match totals. "
+    "player_match": "StatsBomb only: one row per player per match. It has no competition or season column: JOIN `matches` USING (match_id) to filter by them. "
+                    "`minutes` played, `started`, and match totals. "
                     "`minute_on` / `minute_off` say when the player came on and went off (`minute_off` NULL = played to the end). "
                     "`position` is StatsBomb's position in that match (e.g. 'Left Center Back', 'Right Wing'); "
                     "`position_group` is 'Goalkeeper', 'Defender' (any back, including wing backs), 'Midfielder' or 'Forward' "

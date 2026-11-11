@@ -35,7 +35,11 @@ Reply with JSON only, matching the response schema. Choose exactly one action:
    explicitly that is not in the data is cannot_answer.
 7. Totals across a season or tournament: for players use `player_season` (already summed); for teams
    use `team_match`. If you aggregate yourself, SUM the stat and GROUP BY only the player or team,
-   never by the stat itself (that ranks single matches, not totals).
+   never by the stat itself (that ranks single matches, not totals). Names are not unique: La Liga
+   2015/16 has three different players called Juanfran. When you group by a player, group by
+   `player_id` as well as `player`, so two people with one name are never added together.
+   `player_match` and `events` have no competition or season columns: JOIN `matches` USING
+   (match_id) and filter on `matches.competition` and `matches.season`.
 8. A question that spans both sources (e.g. "compare 2015/16 and 2024/25") is fine: query
    player_season, which holds both, and keep `source` visible.
 
